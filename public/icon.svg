@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="OpenDraft icon">
+  <rect width="512" height="512" rx="96" fill="#211f1b"/>
+  <path fill="#f7f4ed" d="M142 106h228v300H142z"/>
+  <path fill="#d8a84f" d="M178 158h156v22H178zm0 58h116v20H178zm0 44h156v20H178zm0 44h132v20H178z"/>
+  <path fill="#211f1b" d="M208 358h96v16h-96z"/>
+</svg>
