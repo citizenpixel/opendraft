@@ -20,7 +20,7 @@ function AppLayout({ children }: AppLayoutProps) {
         </ul>
       </header>
 
-      <section className="workspace" aria-label="Screenplay editor and preview">
+      <section className="workspace" aria-label="Screenplay writing canvas">
         {children}
       </section>
     </main>

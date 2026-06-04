@@ -1,7 +1,7 @@
-import { useEffect, useRef, type ClipboardEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { parseFountain, type FountainBlock, type FountainBlockType } from "../utils/fountain";
 
-type LiveFormatEditorProps = {
+type WritingCanvasProps = {
   value: string;
   onChange: (value: string) => void;
 };
@@ -15,37 +15,58 @@ const elementTypes: FountainBlockType[] = [
   "scene-heading",
 ];
 
-function LiveFormatEditor({ value, onChange }: LiveFormatEditorProps) {
-  const editorRef = useRef<HTMLElement | null>(null);
+const elementLabels: Record<FountainBlockType, string> = {
+  "scene-heading": "Scene Heading",
+  action: "Action",
+  character: "Character",
+  dialogue: "Dialogue",
+  parenthetical: "Parenthetical",
+  transition: "Transition",
+};
+
+function WritingCanvas({ value, onChange }: WritingCanvasProps) {
+  const canvasRef = useRef<HTMLElement | null>(null);
   const latestSourceRef = useRef(value);
+  const [currentType, setCurrentType] = useState<FountainBlockType>("action");
 
   useEffect(() => {
-    if (!editorRef.current || latestSourceRef.current === value) {
+    if (!canvasRef.current || latestSourceRef.current === value) {
       return;
     }
 
-    renderSource(editorRef.current, value);
+    renderSource(canvasRef.current, value);
     latestSourceRef.current = value;
+    updateCurrentType();
   }, [value]);
 
   useEffect(() => {
-    if (!editorRef.current) {
+    if (!canvasRef.current) {
       return;
     }
 
-    renderSource(editorRef.current, value);
+    renderSource(canvasRef.current, value);
     latestSourceRef.current = value;
+    updateCurrentType();
+
+    document.addEventListener("selectionchange", updateCurrentType);
+
+    return () => {
+      document.removeEventListener("selectionchange", updateCurrentType);
+    };
   }, []);
 
   function syncSource() {
-    if (!editorRef.current) {
+    if (!canvasRef.current) {
       return;
     }
 
-    normalizeBlockTypes(editorRef.current);
-    const nextSource = serializeEditor(editorRef.current);
+    ensureCanvasHasBlock(canvasRef.current);
+    normalizeBlockTypes(canvasRef.current);
+
+    const nextSource = serializeCanvas(canvasRef.current);
     latestSourceRef.current = nextSource;
     onChange(nextSource);
+    updateCurrentType();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -58,7 +79,7 @@ function LiveFormatEditor({ value, onChange }: LiveFormatEditorProps) {
 
     if (event.key === "Enter") {
       event.preventDefault();
-      handleEnter();
+      insertNewLine();
     }
   }
 
@@ -75,16 +96,16 @@ function LiveFormatEditor({ value, onChange }: LiveFormatEditorProps) {
       return;
     }
 
-    const currentType = getBlockType(block);
-    const currentIndex = elementTypes.indexOf(currentType);
+    const currentIndex = elementTypes.indexOf(getBlockType(block));
     const nextIndex = (currentIndex + direction + elementTypes.length) % elementTypes.length;
     setBlockType(block, elementTypes[nextIndex]);
+    setCurrentType(elementTypes[nextIndex]);
   }
 
-  function handleEnter() {
+  function insertNewLine() {
     const block = getCurrentBlock();
 
-    if (!block || !editorRef.current) {
+    if (!block || !canvasRef.current) {
       return;
     }
 
@@ -97,6 +118,7 @@ function LiveFormatEditor({ value, onChange }: LiveFormatEditorProps) {
 
     if (currentType === "dialogue" && !currentText) {
       setBlockType(block, "action");
+      setCurrentType("action");
       syncSource();
       return;
     }
@@ -107,14 +129,23 @@ function LiveFormatEditor({ value, onChange }: LiveFormatEditorProps) {
     block.textContent = beforeText;
     block.after(nextBlock);
     placeCaretAtStart(nextBlock);
+    setCurrentType(nextType);
     syncSource();
+  }
+
+  function updateCurrentType() {
+    const block = getCurrentBlock();
+
+    if (block) {
+      setCurrentType(getBlockType(block));
+    }
   }
 
   function getCurrentBlock() {
     const selection = window.getSelection();
     const node = selection?.anchorNode;
 
-    if (!node || !editorRef.current?.contains(node)) {
+    if (!node || !canvasRef.current?.contains(node)) {
       return null;
     }
 
@@ -123,22 +154,26 @@ function LiveFormatEditor({ value, onChange }: LiveFormatEditorProps) {
   }
 
   return (
-    <div className="pane live-format-pane">
-      <div className="pane-header">
-        <h2>Live Format</h2>
-        <span>Experimental</span>
+    <div className="writing-panel">
+      <div className="canvas-toolbar">
+        <div>
+          <h2>Writing Canvas</h2>
+          <p>Fountain source saved locally</p>
+        </div>
+        <span className="element-status">{elementLabels[currentType]}</span>
       </div>
-      <div className="experimental-note">
-        One editable screenplay surface. Fountain stays underneath; Tab changes element type.
-      </div>
+
       <article
-        className="screenplay live-screenplay"
-        aria-label="Experimental live formatted editor"
+        className="screenplay writing-canvas"
+        aria-label="Screenplay writing canvas"
         contentEditable
+        onFocus={updateCurrentType}
         onInput={syncSource}
         onKeyDown={handleKeyDown}
+        onKeyUp={updateCurrentType}
+        onMouseUp={updateCurrentType}
         onPaste={handlePaste}
-        ref={editorRef}
+        ref={canvasRef}
         spellCheck="true"
         suppressContentEditableWarning
       />
@@ -146,11 +181,11 @@ function LiveFormatEditor({ value, onChange }: LiveFormatEditorProps) {
   );
 }
 
-function renderSource(editor: HTMLElement, source: string) {
+function renderSource(canvas: HTMLElement, source: string) {
   const blocks = parseFountain(source);
   const visibleBlocks = blocks.length > 0 ? blocks : [{ type: "action", text: "" } satisfies FountainBlock];
 
-  editor.replaceChildren(...visibleBlocks.map(createBlock));
+  canvas.replaceChildren(...visibleBlocks.map(createBlock));
 }
 
 function createBlock(block: FountainBlock) {
@@ -162,17 +197,23 @@ function createBlock(block: FountainBlock) {
 
 function setBlockType(block: HTMLElement, type: FountainBlockType) {
   block.dataset.blockType = type;
-  block.className = `screenplay-block editable-block ${type}`;
+  block.className = `screenplay-block ${type}`;
 }
 
 function getBlockType(block: HTMLElement): FountainBlockType {
   return (block.dataset.blockType as FountainBlockType | undefined) ?? "action";
 }
 
-function normalizeBlockTypes(editor: HTMLElement) {
-  const blocks = getEditorBlocks(editor);
+function ensureCanvasHasBlock(canvas: HTMLElement) {
+  if (getCanvasBlocks(canvas).length === 0) {
+    const block = createBlock({ type: "action", text: "" });
+    canvas.append(block);
+    placeCaretAtStart(block);
+  }
+}
 
-  for (const block of blocks) {
+function normalizeBlockTypes(canvas: HTMLElement) {
+  for (const block of getCanvasBlocks(canvas)) {
     const text = block.textContent?.trim() ?? "";
     const type = getBlockType(block);
 
@@ -188,8 +229,8 @@ function normalizeBlockTypes(editor: HTMLElement) {
   }
 }
 
-function serializeEditor(editor: HTMLElement) {
-  const blocks = getEditorBlocks(editor)
+function serializeCanvas(canvas: HTMLElement) {
+  const blocks = getCanvasBlocks(canvas)
     .map((block) => ({
       text: formatBlockText(block),
       type: getBlockType(block),
@@ -218,20 +259,16 @@ function formatBlockText(block: HTMLElement) {
   return text;
 }
 
-function getEditorBlocks(editor: HTMLElement) {
-  return Array.from(editor.querySelectorAll<HTMLElement>("[data-block-type]"));
+function getCanvasBlocks(canvas: HTMLElement) {
+  return Array.from(canvas.querySelectorAll<HTMLElement>("[data-block-type]"));
 }
 
 function getNextBlockType(type: FountainBlockType): FountainBlockType {
-  if (type === "scene-heading" || type === "action" || type === "transition") {
-    return "action";
-  }
-
   if (type === "character" || type === "parenthetical") {
     return "dialogue";
   }
 
-  return "dialogue";
+  return "action";
 }
 
 function shouldKeepDialogueTogether(previousType: FountainBlockType, nextType: FountainBlockType) {
@@ -279,4 +316,4 @@ function insertPlainText(text: string) {
   selection.addRange(range);
 }
 
-export default LiveFormatEditor;
+export default WritingCanvas;
