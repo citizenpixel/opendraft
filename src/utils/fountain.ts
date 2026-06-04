@@ -1,39 +1,55 @@
-export type FountainBlockType = "scene-heading" | "action" | "character" | "dialogue";
+export type FountainBlockType =
+  | "scene-heading"
+  | "action"
+  | "character"
+  | "dialogue"
+  | "parenthetical"
+  | "transition";
 
 export type FountainBlock = {
   type: FountainBlockType;
   text: string;
 };
 
-const sceneHeadingPattern = /^(INT\.|EXT\.)\s+/;
+const sceneHeadingPattern = /^(INT\.|EXT\.)\s+/i;
+const transitionPattern = /^[A-Z][A-Z0-9 .'-]* TO:$/;
 
 export function parseFountain(source: string): FountainBlock[] {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: FountainBlock[] = [];
-  let isInDialogue = false;
+  let expectsDialogue = false;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
     if (!line) {
-      isInDialogue = false;
+      expectsDialogue = false;
       continue;
     }
 
-    const block = classifyLine(line, isInDialogue);
+    const block = classifyLine(line, expectsDialogue);
     blocks.push(block);
-    isInDialogue = block.type === "character" || block.type === "dialogue";
+    expectsDialogue =
+      block.type === "character" || block.type === "dialogue" || block.type === "parenthetical";
   }
 
   return blocks;
 }
 
-function classifyLine(line: string, isInDialogue: boolean): FountainBlock {
+function classifyLine(line: string, expectsDialogue: boolean): FountainBlock {
   if (sceneHeadingPattern.test(line)) {
-    return { type: "scene-heading", text: line };
+    return { type: "scene-heading", text: line.toUpperCase() };
   }
 
-  if (isInDialogue) {
+  if (transitionPattern.test(line)) {
+    return { type: "transition", text: line };
+  }
+
+  if (expectsDialogue && line.startsWith("(")) {
+    return { type: "parenthetical", text: line };
+  }
+
+  if (expectsDialogue) {
     return { type: "dialogue", text: line };
   }
 

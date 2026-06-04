@@ -215,6 +215,18 @@ textarea {
   margin-left: auto;
 }
 
+.parenthetical {
+  width: 26ch;
+  max-width: 100%;
+  margin: 0 auto 0.15rem;
+}
+
+.transition {
+  margin-left: auto;
+  text-align: right;
+  text-transform: uppercase;
+}
+
 .editable-block {
   border-radius: 6px;
   outline: 0;
@@ -228,6 +240,35 @@ textarea {
 .editable-block:focus {
   background: #f7f4ed;
   box-shadow: 0 0 0 2px #d8a84f;
+}
+
+.live-screenplay {
+  caret-color: #211f1b;
+}
+
+.live-screenplay:focus {
+  outline: 0;
+}
+
+.live-screenplay .screenplay-block {
+  margin-bottom: 0.45rem;
+  min-height: 1.45em;
+}
+
+.live-screenplay .scene-heading,
+.live-screenplay .action,
+.live-screenplay .transition {
+  margin-top: 1rem;
+}
+
+.live-screenplay .character {
+  margin-top: 1rem;
+  margin-bottom: 0.1rem;
+}
+
+.live-screenplay .dialogue,
+.live-screenplay .parenthetical {
+  margin-bottom: 0.15rem;
 }
 
 @media (min-width: 720px) {

@@ -24,7 +24,7 @@ function App() {
 
       {mode === "plain" && <Editor value={script} onChange={setScript} />}
       {mode === "preview" && <Preview blocks={preview} />}
-      {mode === "live" && <LiveFormatEditor blocks={preview} onChange={setScript} />}
+      {mode === "live" && <LiveFormatEditor value={script} onChange={setScript} />}
     </AppLayout>
   );
 }
