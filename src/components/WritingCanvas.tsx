@@ -160,7 +160,7 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
           <h2>Writing Canvas</h2>
           <p>Fountain source saved locally</p>
         </div>
-        <span className="element-status">{elementLabels[currentType]}</span>
+        <span className="element-status">Current Element: {elementLabels[currentType]}</span>
       </div>
 
       <article
