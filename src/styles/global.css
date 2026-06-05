@@ -253,9 +253,7 @@ h1 {
 }
 
 .element-picker {
-  position: absolute;
-  top: 72px;
-  right: 12px;
+  position: fixed;
   z-index: 20;
   display: grid;
   width: min(280px, calc(100vw - 24px));

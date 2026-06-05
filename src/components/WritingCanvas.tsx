@@ -52,6 +52,11 @@ const elementLabels: Record<FountainBlockType, string> = {
   "general-text-centered": "General Text (Centered)",
 };
 
+type PickerPosition = {
+  left: number;
+  top: number;
+};
+
 function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
   const canvasRef = useRef<HTMLElement | null>(null);
   const latestSourceRef = useRef(value);
@@ -59,9 +64,20 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
   const savedRangeRef = useRef<Range | null>(null);
   const pickerBlockRef = useRef<HTMLElement | null>(null);
   const pendingPickerBlockRef = useRef<HTMLElement | null>(null);
+  const pickerOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [currentType, setCurrentType] = useState<FountainBlockType>("action");
   const [pickerIndex, setPickerIndex] = useState(0);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerPosition, setPickerPosition] = useState<PickerPosition | null>(null);
+
+  useEffect(() => {
+    if (!pickerPosition) {
+      return;
+    }
+
+    pickerOptionRefs.current[pickerIndex]?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [pickerIndex, pickerPosition]);
 
   useEffect(() => {
     if (!canvasRef.current || latestSourceRef.current === value) {
@@ -110,7 +126,7 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (isPickerOpen) {
+    if (pickerPosition) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         const direction = event.key === "ArrowDown" ? 1 : -1;
@@ -242,11 +258,11 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
     rememberSelection();
     pickerBlockRef.current = block;
     setPickerIndex(Math.max(0, pickerTypes.indexOf(getBlockType(block))));
-    setIsPickerOpen(true);
+    setPickerPosition(getPickerPosition(block, savedRangeRef.current));
   }
 
   function closePicker() {
-    setIsPickerOpen(false);
+    setPickerPosition(null);
     pickerBlockRef.current = null;
     pendingPickerBlockRef.current = null;
     restoreSelection();
@@ -331,11 +347,12 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
         suppressContentEditableWarning
       />
 
-      {isPickerOpen && (
+      {pickerPosition && (
         <div
           className="element-picker"
           role="listbox"
           aria-label="Choose screenplay element"
+          style={{ left: pickerPosition.left, top: pickerPosition.top }}
         >
           {pickerTypes.map((type, index) => (
             <button
@@ -345,6 +362,9 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
               onPointerDown={(event) => {
                 event.preventDefault();
                 selectPickerType(type);
+              }}
+              ref={(option) => {
+                pickerOptionRefs.current[index] = option;
               }}
               role="option"
               type="button"
@@ -523,6 +543,24 @@ function insertPlainText(text: string) {
   range.collapse(false);
   selection.removeAllRanges();
   selection.addRange(range);
+}
+
+function getPickerPosition(block: HTMLElement, savedRange: Range | null): PickerPosition {
+  const menuWidth = Math.min(280, window.innerWidth - 24);
+  const menuHeight = Math.min(340, window.innerHeight - 24);
+  const caretRect = savedRange?.getBoundingClientRect();
+  const blockRect = block.getBoundingClientRect();
+  const anchorRect =
+    caretRect && (caretRect.width > 0 || caretRect.height > 0) ? caretRect : blockRect;
+
+  return {
+    left: clamp(anchorRect.left, 12, window.innerWidth - menuWidth - 12),
+    top: clamp(anchorRect.bottom + 6, 12, window.innerHeight - menuHeight - 12),
+  };
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 }
 
 export default WritingCanvas;
