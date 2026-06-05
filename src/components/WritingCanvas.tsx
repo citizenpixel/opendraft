@@ -52,20 +52,16 @@ const elementLabels: Record<FountainBlockType, string> = {
   "general-text-centered": "General Text (Centered)",
 };
 
-type PickerPosition = {
-  left: number;
-  top: number;
-};
-
 function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
   const canvasRef = useRef<HTMLElement | null>(null);
   const latestSourceRef = useRef(value);
   const currentBlockRef = useRef<HTMLElement | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const pickerBlockRef = useRef<HTMLElement | null>(null);
+  const pendingPickerBlockRef = useRef<HTMLElement | null>(null);
   const [currentType, setCurrentType] = useState<FountainBlockType>("action");
   const [pickerIndex, setPickerIndex] = useState(0);
-  const [pickerPosition, setPickerPosition] = useState<PickerPosition | null>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current || latestSourceRef.current === value) {
@@ -102,13 +98,19 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
     normalizeBlockTypes(canvasRef.current);
 
     const nextSource = serializeCanvas(canvasRef.current);
+    const currentBlock = getCurrentBlock();
+
+    if (currentBlock?.textContent?.trim()) {
+      pendingPickerBlockRef.current = null;
+    }
+
     latestSourceRef.current = nextSource;
     onChange(nextSource);
     updateCurrentType();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (pickerPosition) {
+    if (isPickerOpen) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         const direction = event.key === "ArrowDown" ? 1 : -1;
@@ -159,6 +161,7 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
     const nextIndex = (currentIndex + direction + elementTypes.length) % elementTypes.length;
     setBlockType(block, elementTypes[nextIndex]);
     setCurrentType(elementTypes[nextIndex]);
+    pendingPickerBlockRef.current = null;
   }
 
   function handleElementChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -217,9 +220,9 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
     const beforeText = fullText.slice(0, caretOffset).trim();
     const afterText = fullText.slice(caretOffset).trim();
 
-    // The first Enter follows normal screenplay flow. If the writer presses
-    // Enter again on that empty line, keep it in place and open the picker.
-    if (!currentText) {
+    // The first Enter creates and remembers a blank line. Pressing Enter again
+    // on that exact blank line opens the picker instead of creating another.
+    if (!currentText && pendingPickerBlockRef.current === block) {
       openPicker(block);
       return;
     }
@@ -230,6 +233,7 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
     block.textContent = beforeText;
     block.after(nextBlock);
     placeCaretAtStart(nextBlock);
+    pendingPickerBlockRef.current = afterText ? null : nextBlock;
     setCurrentType(nextType);
     syncSource();
   }
@@ -238,20 +242,13 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
     rememberSelection();
     pickerBlockRef.current = block;
     setPickerIndex(Math.max(0, pickerTypes.indexOf(getBlockType(block))));
-
-    const selectionRect = savedRangeRef.current?.getBoundingClientRect();
-    const blockRect = block.getBoundingClientRect();
-    const anchorRect = selectionRect?.width || selectionRect?.height ? selectionRect : blockRect;
-
-    setPickerPosition({
-      left: Math.max(12, Math.min(anchorRect.left, window.innerWidth - 300)),
-      top: Math.max(12, Math.min(anchorRect.bottom + 8, window.innerHeight - 360)),
-    });
+    setIsPickerOpen(true);
   }
 
   function closePicker() {
-    setPickerPosition(null);
+    setIsPickerOpen(false);
     pickerBlockRef.current = null;
+    pendingPickerBlockRef.current = null;
     restoreSelection();
   }
 
@@ -334,12 +331,11 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
         suppressContentEditableWarning
       />
 
-      {pickerPosition && (
+      {isPickerOpen && (
         <div
           className="element-picker"
           role="listbox"
           aria-label="Choose screenplay element"
-          style={{ left: pickerPosition.left, top: pickerPosition.top }}
         >
           {pickerTypes.map((type, index) => (
             <button
