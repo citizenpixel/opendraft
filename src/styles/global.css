@@ -185,6 +185,21 @@ h1 {
   text-transform: uppercase;
 }
 
+.shot {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.general-text {
+  max-width: 62ch;
+}
+
+.general-text-centered {
+  margin-right: auto;
+  margin-left: auto;
+  text-align: center;
+}
+
 .writing-canvas {
   caret-color: #211f1b;
 }
@@ -206,7 +221,10 @@ h1 {
 
 .writing-canvas .scene-heading,
 .writing-canvas .action,
-.writing-canvas .transition {
+.writing-canvas .transition,
+.writing-canvas .shot,
+.writing-canvas .general-text,
+.writing-canvas .general-text-centered {
   margin-top: 1rem;
 }
 
@@ -218,6 +236,37 @@ h1 {
 .writing-canvas .dialogue,
 .writing-canvas .parenthetical {
   margin-bottom: 0.15rem;
+}
+
+.element-picker {
+  position: fixed;
+  z-index: 20;
+  display: grid;
+  width: min(280px, calc(100vw - 24px));
+  max-height: min(340px, calc(100vh - 24px));
+  overflow-y: auto;
+  border: 1px solid #cfc3b1;
+  border-radius: 8px;
+  padding: 5px;
+  background: #fffdf8;
+  box-shadow: 0 14px 36px rgb(48 41 31 / 0.2);
+}
+
+.element-picker button {
+  border: 0;
+  border-radius: 5px;
+  padding: 10px 12px;
+  background: transparent;
+  color: #211f1b;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.element-picker button:hover,
+.element-picker button.active {
+  background: #211f1b;
+  color: #fffdf8;
 }
 
 @media (min-width: 720px) {

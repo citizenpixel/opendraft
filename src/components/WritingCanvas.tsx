@@ -20,6 +20,21 @@ const elementTypes: FountainBlockType[] = [
   "parenthetical",
   "transition",
   "scene-heading",
+  "shot",
+  "general-text",
+  "general-text-centered",
+];
+
+const pickerTypes: FountainBlockType[] = [
+  "scene-heading",
+  "action",
+  "character",
+  "parenthetical",
+  "dialogue",
+  "transition",
+  "shot",
+  "general-text",
+  "general-text-centered",
 ];
 
 const elementLabels: Record<FountainBlockType, string> = {
@@ -29,6 +44,14 @@ const elementLabels: Record<FountainBlockType, string> = {
   dialogue: "Dialogue",
   parenthetical: "Parenthetical",
   transition: "Transition",
+  shot: "Shot",
+  "general-text": "General Text",
+  "general-text-centered": "General Text (Centered)",
+};
+
+type PickerPosition = {
+  left: number;
+  top: number;
 };
 
 function WritingCanvas({ value, onChange }: WritingCanvasProps) {
@@ -36,7 +59,10 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
   const latestSourceRef = useRef(value);
   const currentBlockRef = useRef<HTMLElement | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const pickerBlockRef = useRef<HTMLElement | null>(null);
   const [currentType, setCurrentType] = useState<FountainBlockType>("action");
+  const [pickerIndex, setPickerIndex] = useState(0);
+  const [pickerPosition, setPickerPosition] = useState<PickerPosition | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current || latestSourceRef.current === value) {
@@ -79,6 +105,27 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (pickerPosition) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        setPickerIndex((index) => (index + direction + pickerTypes.length) % pickerTypes.length);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        selectPickerType(pickerTypes[pickerIndex]);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePicker();
+        return;
+      }
+    }
+
     if (event.key === "Tab") {
       event.preventDefault();
       cycleCurrentBlock(event.shiftKey ? -1 : 1);
@@ -167,10 +214,10 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
     const beforeText = fullText.slice(0, caretOffset).trim();
     const afterText = fullText.slice(caretOffset).trim();
 
-    if (currentType === "dialogue" && !currentText) {
-      setBlockType(block, "action");
-      setCurrentType("action");
-      syncSource();
+    // The first Enter follows normal screenplay flow. If the writer presses
+    // Enter again on that empty line, keep it in place and open the picker.
+    if (!currentText) {
+      openPicker(block);
       return;
     }
 
@@ -182,6 +229,41 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
     placeCaretAtStart(nextBlock);
     setCurrentType(nextType);
     syncSource();
+  }
+
+  function openPicker(block: HTMLElement) {
+    rememberSelection();
+    pickerBlockRef.current = block;
+    setPickerIndex(Math.max(0, pickerTypes.indexOf(getBlockType(block))));
+
+    const selectionRect = savedRangeRef.current?.getBoundingClientRect();
+    const blockRect = block.getBoundingClientRect();
+    const anchorRect = selectionRect?.width || selectionRect?.height ? selectionRect : blockRect;
+
+    setPickerPosition({
+      left: Math.max(12, Math.min(anchorRect.left, window.innerWidth - 300)),
+      top: Math.max(12, Math.min(anchorRect.bottom + 8, window.innerHeight - 360)),
+    });
+  }
+
+  function closePicker() {
+    setPickerPosition(null);
+    pickerBlockRef.current = null;
+    restoreSelection();
+  }
+
+  function selectPickerType(type: FountainBlockType) {
+    const block = pickerBlockRef.current;
+
+    if (!block) {
+      closePicker();
+      return;
+    }
+
+    setBlockType(block, type);
+    setCurrentType(type);
+    syncSource();
+    closePicker();
   }
 
   function updateCurrentType() {
@@ -243,6 +325,31 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
         spellCheck="true"
         suppressContentEditableWarning
       />
+
+      {pickerPosition && (
+        <div
+          className="element-picker"
+          role="listbox"
+          aria-label="Choose screenplay element"
+          style={{ left: pickerPosition.left, top: pickerPosition.top }}
+        >
+          {pickerTypes.map((type, index) => (
+            <button
+              aria-selected={index === pickerIndex}
+              className={index === pickerIndex ? "active" : ""}
+              key={type}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                selectPickerType(type);
+              }}
+              role="option"
+              type="button"
+            >
+              {elementLabels[type]}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -324,6 +431,18 @@ function formatBlockText(block: HTMLElement) {
 
   if (type === "action" && needsForcedAction(text)) {
     return `!${text}`;
+  }
+
+  if (type === "shot") {
+    return `[[OpenDraft: Shot]] ${text}`;
+  }
+
+  if (type === "general-text") {
+    return `[[OpenDraft: General Text]] ${text}`;
+  }
+
+  if (type === "general-text-centered") {
+    return `>${text}<`;
   }
 
   if (type === "scene-heading" || type === "transition") {

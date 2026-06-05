@@ -4,7 +4,10 @@ export type FountainBlockType =
   | "character"
   | "dialogue"
   | "parenthetical"
-  | "transition";
+  | "transition"
+  | "shot"
+  | "general-text"
+  | "general-text-centered";
 
 export type FountainBlock = {
   type: FountainBlockType;
@@ -37,6 +40,21 @@ export function parseFountain(source: string): FountainBlock[] {
 }
 
 function classifyLine(line: string, expectsDialogue: boolean): FountainBlock {
+  if (line.startsWith("[[OpenDraft: Shot]]")) {
+    return { type: "shot", text: line.replace("[[OpenDraft: Shot]]", "").trimStart() };
+  }
+
+  if (line.startsWith("[[OpenDraft: General Text]]")) {
+    return {
+      type: "general-text",
+      text: line.replace("[[OpenDraft: General Text]]", "").trimStart(),
+    };
+  }
+
+  if (line.startsWith(">") && line.endsWith("<")) {
+    return { type: "general-text-centered", text: line.slice(1, -1).trim() };
+  }
+
   if (line.startsWith("!")) {
     return { type: "action", text: line.slice(1) };
   }
