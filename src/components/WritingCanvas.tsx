@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type KeyboardEvent,
+} from "react";
 import { parseFountain, type FountainBlock, type FountainBlockType } from "../utils/fountain";
 
 type WritingCanvasProps = {
@@ -27,6 +34,8 @@ const elementLabels: Record<FountainBlockType, string> = {
 function WritingCanvas({ value, onChange }: WritingCanvasProps) {
   const canvasRef = useRef<HTMLElement | null>(null);
   const latestSourceRef = useRef(value);
+  const currentBlockRef = useRef<HTMLElement | null>(null);
+  const savedRangeRef = useRef<Range | null>(null);
   const [currentType, setCurrentType] = useState<FountainBlockType>("action");
 
   useEffect(() => {
@@ -90,7 +99,7 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
   }
 
   function cycleCurrentBlock(direction: 1 | -1) {
-    const block = getCurrentBlock();
+    const block = getCurrentBlock() ?? currentBlockRef.current;
 
     if (!block) {
       return;
@@ -100,6 +109,48 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
     const nextIndex = (currentIndex + direction + elementTypes.length) % elementTypes.length;
     setBlockType(block, elementTypes[nextIndex]);
     setCurrentType(elementTypes[nextIndex]);
+  }
+
+  function handleElementChange(event: ChangeEvent<HTMLSelectElement>) {
+    const block = currentBlockRef.current;
+    const nextType = event.target.value as FountainBlockType;
+
+    if (!block) {
+      return;
+    }
+
+    setBlockType(block, nextType);
+    setCurrentType(nextType);
+    syncSource();
+    restoreSelection();
+  }
+
+  function rememberSelection() {
+    const selection = window.getSelection();
+    const block = getCurrentBlock();
+
+    if (block) {
+      currentBlockRef.current = block;
+    }
+
+    if (selection?.rangeCount && canvasRef.current?.contains(selection.anchorNode)) {
+      savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+    }
+  }
+
+  function restoreSelection() {
+    const range = savedRangeRef.current;
+
+    if (!range) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const selection = window.getSelection();
+      canvasRef.current?.focus();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
   }
 
   function insertNewLine() {
@@ -137,6 +188,7 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
     const block = getCurrentBlock();
 
     if (block) {
+      currentBlockRef.current = block;
       setCurrentType(getBlockType(block));
     }
   }
@@ -160,7 +212,21 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
           <h2>Writing Canvas</h2>
           <p>Fountain source saved locally</p>
         </div>
-        <span className="element-status">Current Element: {elementLabels[currentType]}</span>
+        <label className="element-status">
+          <span>Current Element:</span>
+          <select
+            aria-label="Current screenplay element"
+            onChange={handleElementChange}
+            onPointerDown={rememberSelection}
+            value={currentType}
+          >
+            {elementTypes.map((type) => (
+              <option key={type} value={type}>
+                {elementLabels[type]}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <article
@@ -217,12 +283,12 @@ function normalizeBlockTypes(canvas: HTMLElement) {
     const text = block.textContent?.trim() ?? "";
     const type = getBlockType(block);
 
+    // Only unmistakable Fountain syntax changes a type while the writer is typing.
+    // Action remains the safe default; uppercase text never implies Character.
     if (/^(INT\.|EXT\.)\s+/i.test(text)) {
       setBlockType(block, "scene-heading");
-    } else if (/^[A-Z][A-Z0-9 .'-]* TO:$/.test(text)) {
+    } else if (/\bTO:$/i.test(text)) {
       setBlockType(block, "transition");
-    } else if (type === "action" && /[A-Z]/.test(text) && text === text.toUpperCase()) {
-      setBlockType(block, "character");
     } else if (type === "dialogue" && text.startsWith("(")) {
       setBlockType(block, "parenthetical");
     }
@@ -252,7 +318,15 @@ function formatBlockText(block: HTMLElement) {
   const text = block.textContent?.trim() ?? "";
   const type = getBlockType(block);
 
-  if (type === "scene-heading" || type === "character" || type === "transition") {
+  if (type === "character") {
+    return `@${text.toUpperCase()}`;
+  }
+
+  if (type === "action" && needsForcedAction(text)) {
+    return `!${text}`;
+  }
+
+  if (type === "scene-heading" || type === "transition") {
     return text.toUpperCase();
   }
 
@@ -264,11 +338,23 @@ function getCanvasBlocks(canvas: HTMLElement) {
 }
 
 function getNextBlockType(type: FountainBlockType): FountainBlockType {
+  // Enter follows a small, predictable screenplay flow. Tab remains the
+  // explicit way to choose a different element without typing heuristics.
   if (type === "character" || type === "parenthetical") {
     return "dialogue";
   }
 
   return "action";
+}
+
+function needsForcedAction(text: string) {
+  return (
+    (/^[A-Z]/.test(text) && text === text.toUpperCase()) ||
+    /^(INT\.|EXT\.)\s+/i.test(text) ||
+    /\bTO:$/i.test(text) ||
+    text.startsWith("@") ||
+    text.startsWith("!")
+  );
 }
 
 function shouldKeepDialogueTogether(previousType: FountainBlockType, nextType: FountainBlockType) {

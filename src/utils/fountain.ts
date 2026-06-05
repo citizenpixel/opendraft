@@ -12,7 +12,7 @@ export type FountainBlock = {
 };
 
 const sceneHeadingPattern = /^(INT\.|EXT\.)\s+/i;
-const transitionPattern = /^[A-Z][A-Z0-9 .'-]* TO:$/;
+const transitionPattern = /\bTO:$/i;
 
 export function parseFountain(source: string): FountainBlock[] {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
@@ -37,12 +37,20 @@ export function parseFountain(source: string): FountainBlock[] {
 }
 
 function classifyLine(line: string, expectsDialogue: boolean): FountainBlock {
+  if (line.startsWith("!")) {
+    return { type: "action", text: line.slice(1) };
+  }
+
+  if (line.startsWith("@")) {
+    return { type: "character", text: line.slice(1).toUpperCase() };
+  }
+
   if (sceneHeadingPattern.test(line)) {
     return { type: "scene-heading", text: line.toUpperCase() };
   }
 
   if (transitionPattern.test(line)) {
-    return { type: "transition", text: line };
+    return { type: "transition", text: line.toUpperCase() };
   }
 
   if (expectsDialogue && line.startsWith("(")) {
@@ -53,13 +61,5 @@ function classifyLine(line: string, expectsDialogue: boolean): FountainBlock {
     return { type: "dialogue", text: line };
   }
 
-  if (isAllCaps(line)) {
-    return { type: "character", text: line };
-  }
-
   return { type: "action", text: line };
-}
-
-function isAllCaps(line: string): boolean {
-  return /[A-Z]/.test(line) && line === line.toUpperCase();
 }
