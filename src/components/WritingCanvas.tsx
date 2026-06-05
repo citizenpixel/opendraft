@@ -11,7 +11,10 @@ import { parseFountain, type FountainBlock, type FountainBlockType } from "../ut
 type WritingCanvasProps = {
   value: string;
   onChange: (value: string) => void;
+  saveStatus: SaveStatus;
 };
+
+export type SaveStatus = "Saving..." | "Saved" | "Restored Draft";
 
 const elementTypes: FountainBlockType[] = [
   "action",
@@ -54,7 +57,7 @@ type PickerPosition = {
   top: number;
 };
 
-function WritingCanvas({ value, onChange }: WritingCanvasProps) {
+function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
   const canvasRef = useRef<HTMLElement | null>(null);
   const latestSourceRef = useRef(value);
   const currentBlockRef = useRef<HTMLElement | null>(null);
@@ -294,21 +297,26 @@ function WritingCanvas({ value, onChange }: WritingCanvasProps) {
           <h2>Writing Canvas</h2>
           <p>Fountain source saved locally</p>
         </div>
-        <label className="element-status">
-          <span>Current Element:</span>
-          <select
-            aria-label="Current screenplay element"
-            onChange={handleElementChange}
-            onPointerDown={rememberSelection}
-            value={currentType}
-          >
-            {elementTypes.map((type) => (
-              <option key={type} value={type}>
-                {elementLabels[type]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="canvas-statuses">
+          <span className="save-status" aria-live="polite">
+            {saveStatus}
+          </span>
+          <label className="element-status">
+            <span>Current Element:</span>
+            <select
+              aria-label="Current screenplay element"
+              onChange={handleElementChange}
+              onPointerDown={rememberSelection}
+              value={currentType}
+            >
+              {elementTypes.map((type) => (
+                <option key={type} value={type}>
+                  {elementLabels[type]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <article
