@@ -3,15 +3,15 @@ import AppMenu from "./AppMenu";
 
 type AppLayoutProps = {
   children: ReactNode;
-  onExportFountain: () => void;
-  onExportPdf: () => void;
+  onExportFountain: () => Promise<void>;
+  onExportPdf: () => Promise<void>;
 };
 
 function AppLayout({ children, onExportFountain, onExportPdf }: AppLayoutProps) {
   return (
     <main className="app-shell">
-      <AppMenu onExportFountain={onExportFountain} onExportPdf={onExportPdf} />
       <header className="app-header" aria-label="OpenDraft project values">
+        <AppMenu onExportFountain={onExportFountain} onExportPdf={onExportPdf} />
         <div>
           <p className="app-kicker">OpenDraft</p>
           <h1>Local-first Fountain screenwriting.</h1>

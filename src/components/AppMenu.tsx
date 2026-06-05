@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
 type AppMenuProps = {
-  onExportFountain: () => void;
-  onExportPdf: () => void;
+  onExportFountain: () => Promise<void>;
+  onExportPdf: () => Promise<void>;
 };
 
 function AppMenu({ onExportFountain, onExportPdf }: AppMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [view, setView] = useState<"main" | "export">("main");
 
   useEffect(() => {
     if (!isOpen) {
@@ -22,7 +23,11 @@ function AppMenu({ onExportFountain, onExportPdf }: AppMenuProps) {
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        if (view === "export") {
+          setView("main");
+        } else {
+          setIsOpen(false);
+        }
       }
     }
 
@@ -33,11 +38,17 @@ function AppMenu({ onExportFountain, onExportPdf }: AppMenuProps) {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, view]);
 
-  function runExport(exportAction: () => void) {
+  async function runExport(exportAction: () => Promise<void>) {
     setIsOpen(false);
-    exportAction();
+    setView("main");
+
+    try {
+      await exportAction();
+    } catch {
+      window.alert("OpenDraft could not export this file. Please try again.");
+    }
   }
 
   return (
@@ -45,8 +56,11 @@ function AppMenu({ onExportFountain, onExportPdf }: AppMenuProps) {
       <button
         aria-expanded={isOpen}
         aria-label="Open application menu"
-        className="menu-trigger"
-        onClick={() => setIsOpen((open) => !open)}
+        className="app-menu-trigger"
+        onClick={() => {
+          setIsOpen((open) => !open);
+          setView("main");
+        }}
         type="button"
       >
         <span />
@@ -55,19 +69,36 @@ function AppMenu({ onExportFountain, onExportPdf }: AppMenuProps) {
       </button>
 
       {isOpen && (
-        <div className="menu-panel">
-          <div className="menu-heading">
-            <span>Export</span>
-            <small>Download your screenplay</small>
-          </div>
-          <button onClick={() => runExport(onExportFountain)} type="button">
-            <strong>Fountain</strong>
-            <span>Portable screenplay source file</span>
-          </button>
-          <button onClick={() => runExport(onExportPdf)} type="button">
-            <strong>PDF</strong>
-            <span>Print or save a formatted screenplay</span>
-          </button>
+        <div className="app-menu-panel">
+          {view === "main" ? (
+            <>
+              <button onClick={() => setView("export")} role="menuitem" type="button">
+                <strong>Export</strong>
+                <span>Choose a file format</span>
+                <span className="menu-arrow" aria-hidden="true">
+                  &gt;
+                </span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="menu-back" onClick={() => setView("main")} type="button">
+                &lt; Back
+              </button>
+              <div className="app-menu-heading">
+                <strong>Export</strong>
+                <span>Choose a format and save location</span>
+              </div>
+              <button onClick={() => runExport(onExportFountain)} role="menuitem" type="button">
+                <strong>Fountain</strong>
+                <span>Portable screenplay source</span>
+              </button>
+              <button onClick={() => runExport(onExportPdf)} role="menuitem" type="button">
+                <strong>PDF</strong>
+                <span>Formatted screenplay document</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

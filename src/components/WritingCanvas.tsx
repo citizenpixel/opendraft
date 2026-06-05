@@ -1,5 +1,7 @@
 import {
+  forwardRef,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type ChangeEvent,
@@ -15,6 +17,10 @@ type WritingCanvasProps = {
 };
 
 export type SaveStatus = "Saving..." | "Saved" | "Restored Draft";
+
+export type WritingCanvasHandle = {
+  getSource: () => string;
+};
 
 const elementTypes: FountainBlockType[] = [
   "action",
@@ -57,7 +63,10 @@ type PickerPosition = {
   top: number;
 };
 
-function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
+const WritingCanvas = forwardRef<WritingCanvasHandle, WritingCanvasProps>(function WritingCanvas(
+  { value, onChange, saveStatus },
+  ref,
+) {
   const canvasRef = useRef<HTMLElement | null>(null);
   const latestSourceRef = useRef(value);
   const currentBlockRef = useRef<HTMLElement | null>(null);
@@ -65,9 +74,21 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
   const pickerBlockRef = useRef<HTMLElement | null>(null);
   const pendingPickerBlockRef = useRef<HTMLElement | null>(null);
   const pickerOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [currentType, setCurrentType] = useState<FountainBlockType>("action");
+  const [currentType, setCurrentType] = useState<FountainBlockType>(() => {
+    return parseFountain(value)[0]?.type ?? "scene-heading";
+  });
   const [pickerIndex, setPickerIndex] = useState(0);
   const [pickerPosition, setPickerPosition] = useState<PickerPosition | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    getSource() {
+      if (!canvasRef.current) {
+        return latestSourceRef.current;
+      }
+
+      return serializeCanvas(canvasRef.current);
+    },
+  }));
 
   useEffect(() => {
     if (!pickerPosition) {
@@ -391,11 +412,14 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
       )}
     </div>
   );
-}
+});
 
 function renderSource(canvas: HTMLElement, source: string) {
   const blocks = parseFountain(source);
-  const visibleBlocks = blocks.length > 0 ? blocks : [{ type: "action", text: "" } satisfies FountainBlock];
+  // A truly blank screenplay starts with a Scene Heading. Action remains the
+  // safe default for subsequent lines and normal writing flow.
+  const visibleBlocks =
+    blocks.length > 0 ? blocks : [{ type: "scene-heading", text: "" } satisfies FountainBlock];
 
   canvas.replaceChildren(...visibleBlocks.map(createBlock));
 }
@@ -418,7 +442,7 @@ function getBlockType(block: HTMLElement): FountainBlockType {
 
 function ensureCanvasHasBlock(canvas: HTMLElement) {
   if (getCanvasBlocks(canvas).length === 0) {
-    const block = createBlock({ type: "action", text: "" });
+    const block = createBlock({ type: "scene-heading", text: "" });
     canvas.append(block);
     placeCaretAtStart(block);
   }

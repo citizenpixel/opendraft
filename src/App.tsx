@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import AppLayout from "./components/AppLayout";
-import WritingCanvas, { type SaveStatus } from "./components/WritingCanvas";
+import WritingCanvas, {
+  type SaveStatus,
+  type WritingCanvasHandle,
+} from "./components/WritingCanvas";
 import { sampleScript } from "./sampleScript";
 import { downloadFountain } from "./utils/exportFountain";
 import { exportScreenplayPdf } from "./utils/exportPdf";
@@ -15,6 +18,7 @@ function App() {
     restoredDraft === null ? "Saved" : "Restored Draft",
   );
   const latestScriptRef = useRef(script);
+  const writingCanvasRef = useRef<WritingCanvasHandle | null>(null);
 
   useEffect(() => {
     if (saveStatus !== "Saving...") {
@@ -47,12 +51,24 @@ function App() {
     setSaveStatus("Saving...");
   }
 
+  function getCurrentSource() {
+    const source = writingCanvasRef.current?.getSource() ?? latestScriptRef.current;
+    latestScriptRef.current = source;
+    saveDraft(source);
+    return source;
+  }
+
   return (
     <AppLayout
-      onExportFountain={() => downloadFountain(latestScriptRef.current)}
-      onExportPdf={() => exportScreenplayPdf(latestScriptRef.current)}
+      onExportFountain={() => downloadFountain(getCurrentSource())}
+      onExportPdf={() => exportScreenplayPdf(getCurrentSource())}
     >
-      <WritingCanvas value={script} onChange={handleScriptChange} saveStatus={saveStatus} />
+      <WritingCanvas
+        ref={writingCanvasRef}
+        value={script}
+        onChange={handleScriptChange}
+        saveStatus={saveStatus}
+      />
     </AppLayout>
   );
 }

@@ -1,14 +1,21 @@
+import { createFileSaveTarget } from "./saveFile";
+
 const fallbackFilename = "untitled.fountain";
 
-export function downloadFountain(source: string) {
-  const blob = new Blob([source], { type: "text/plain;charset=utf-8" });
-  const downloadUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+export async function downloadFountain(source: string) {
+  const filename = getFountainFilename(source);
+  const saveTarget = await createFileSaveTarget(filename, {
+    description: "Fountain screenplay",
+    extension: ".fountain",
+    mimeType: "text/plain",
+  });
 
-  link.href = downloadUrl;
-  link.download = getFountainFilename(source);
-  link.click();
-  URL.revokeObjectURL(downloadUrl);
+  if (!saveTarget) {
+    return;
+  }
+
+  const blob = new Blob([source], { type: "text/plain;charset=utf-8" });
+  await saveTarget.write(blob);
 }
 
 export function getFountainFilename(source: string) {
