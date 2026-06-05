@@ -1,12 +1,16 @@
 import type { ReactNode } from "react";
+import AppMenu from "./AppMenu";
 
 type AppLayoutProps = {
   children: ReactNode;
+  onExportFountain: () => void;
+  onExportPdf: () => void;
 };
 
-function AppLayout({ children }: AppLayoutProps) {
+function AppLayout({ children, onExportFountain, onExportPdf }: AppLayoutProps) {
   return (
     <main className="app-shell">
+      <AppMenu onExportFountain={onExportFountain} onExportPdf={onExportPdf} />
       <header className="app-header" aria-label="OpenDraft project values">
         <div>
           <p className="app-kicker">OpenDraft</p>

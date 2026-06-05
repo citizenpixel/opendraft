@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import AppLayout from "./components/AppLayout";
 import WritingCanvas, { type SaveStatus } from "./components/WritingCanvas";
 import { sampleScript } from "./sampleScript";
+import { downloadFountain } from "./utils/exportFountain";
+import { exportScreenplayPdf } from "./utils/exportPdf";
 
 const draftStorageKey = "opendraft-draft";
 const saveDelay = 600;
@@ -46,7 +48,10 @@ function App() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout
+      onExportFountain={() => downloadFountain(latestScriptRef.current)}
+      onExportPdf={() => exportScreenplayPdf(latestScriptRef.current)}
+    >
       <WritingCanvas value={script} onChange={handleScriptChange} saveStatus={saveStatus} />
     </AppLayout>
   );

@@ -31,9 +31,94 @@ p {
   padding: 12px;
 }
 
+.app-menu {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 30;
+}
+
+.menu-trigger {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-content: center;
+  gap: 4px;
+  border: 1px solid #cfc3b1;
+  border-radius: 6px;
+  background: #fffdf8;
+  box-shadow: 0 6px 18px rgb(48 41 31 / 0.12);
+  cursor: pointer;
+}
+
+.menu-trigger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: #211f1b;
+}
+
+.menu-trigger:hover,
+.menu-trigger:focus-visible {
+  border-color: #856532;
+  outline: 0;
+}
+
+.menu-panel {
+  display: grid;
+  width: min(300px, calc(100vw - 24px));
+  gap: 5px;
+  margin-top: 8px;
+  border: 1px solid #cfc3b1;
+  border-radius: 8px;
+  padding: 6px;
+  background: #fffdf8;
+  box-shadow: 0 18px 42px rgb(48 41 31 / 0.2);
+}
+
+.menu-heading {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border-bottom: 1px solid #e7dece;
+}
+
+.menu-heading span {
+  font-weight: 800;
+}
+
+.menu-heading small {
+  color: #756d62;
+}
+
+.menu-panel button {
+  display: grid;
+  gap: 2px;
+  border: 0;
+  border-radius: 5px;
+  padding: 11px 10px;
+  background: transparent;
+  color: #211f1b;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.menu-panel button:hover,
+.menu-panel button:focus-visible {
+  background: #f0e9dd;
+  outline: 0;
+}
+
+.menu-panel button span {
+  color: #756d62;
+  font-size: 0.82rem;
+}
+
 .app-header {
   display: grid;
   gap: 14px;
+  padding-right: 56px;
   padding-bottom: 16px;
 }
 
@@ -296,10 +381,16 @@ h1 {
     padding: 24px;
   }
 
+  .app-menu {
+    top: 24px;
+    right: 24px;
+  }
+
   .app-header {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 24px;
     align-items: end;
+    padding-right: 64px;
     padding-bottom: 20px;
   }
 
