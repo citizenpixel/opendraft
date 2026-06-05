@@ -80,6 +80,38 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
   }, [pickerIndex, pickerPosition]);
 
   useEffect(() => {
+    if (!pickerPosition) {
+      return;
+    }
+
+    function handlePickerKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        setPickerIndex((index) => (index + direction + pickerTypes.length) % pickerTypes.length);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        selectPickerType(pickerTypes[pickerIndex]);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePicker();
+      }
+    }
+
+    document.addEventListener("keydown", handlePickerKeyDown, true);
+
+    return () => {
+      document.removeEventListener("keydown", handlePickerKeyDown, true);
+    };
+  }, [pickerIndex, pickerPosition]);
+
+  useEffect(() => {
     if (!canvasRef.current || latestSourceRef.current === value) {
       return;
     }
@@ -127,24 +159,7 @@ function WritingCanvas({ value, onChange, saveStatus }: WritingCanvasProps) {
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (pickerPosition) {
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        const direction = event.key === "ArrowDown" ? 1 : -1;
-        setPickerIndex((index) => (index + direction + pickerTypes.length) % pickerTypes.length);
-        return;
-      }
-
-      if (event.key === "Enter") {
-        event.preventDefault();
-        selectPickerType(pickerTypes[pickerIndex]);
-        return;
-      }
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closePicker();
-        return;
-      }
+      return;
     }
 
     if (event.key === "Tab") {
@@ -548,15 +563,37 @@ function insertPlainText(text: string) {
 function getPickerPosition(block: HTMLElement, savedRange: Range | null): PickerPosition {
   const menuWidth = Math.min(280, window.innerWidth - 24);
   const menuHeight = Math.min(340, window.innerHeight - 24);
-  const caretRect = savedRange?.getBoundingClientRect();
+  const caretRect = getCaretRect(savedRange);
   const blockRect = block.getBoundingClientRect();
-  const anchorRect =
-    caretRect && (caretRect.width > 0 || caretRect.height > 0) ? caretRect : blockRect;
+  const anchorRect = caretRect ?? blockRect;
 
   return {
     left: clamp(anchorRect.left, 12, window.innerWidth - menuWidth - 12),
     top: clamp(anchorRect.bottom + 6, 12, window.innerHeight - menuHeight - 12),
   };
+}
+
+function getCaretRect(savedRange: Range | null) {
+  if (!savedRange) {
+    return null;
+  }
+
+  const rangeRect = savedRange.getClientRects()[0];
+
+  if (rangeRect && (rangeRect.width > 0 || rangeRect.height > 0)) {
+    return rangeRect;
+  }
+
+  // Empty contenteditable lines often report a zero-size range. A temporary
+  // marker gives us the real visual caret position without moving selection.
+  const marker = document.createElement("span");
+  marker.className = "caret-position-marker";
+  const markerRange = savedRange.cloneRange();
+  markerRange.insertNode(marker);
+  const markerRect = marker.getBoundingClientRect();
+  marker.remove();
+
+  return markerRect;
 }
 
 function clamp(value: number, minimum: number, maximum: number) {

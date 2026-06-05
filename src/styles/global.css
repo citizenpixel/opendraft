@@ -283,6 +283,14 @@ h1 {
   color: #fffdf8;
 }
 
+.caret-position-marker {
+  display: inline-block;
+  width: 0;
+  height: 1.45em;
+  overflow: hidden;
+  vertical-align: text-bottom;
+}
+
 @media (min-width: 720px) {
   .app-shell {
     padding: 24px;
